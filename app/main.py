@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.database import init_db
-from app.routers import users, events
+from app.routers import auth, users, events
 
 app = FastAPI(title="Mental Health App API")
 
@@ -13,6 +13,7 @@ def on_startup():
     init_db()
 
 
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(events.router)
 
