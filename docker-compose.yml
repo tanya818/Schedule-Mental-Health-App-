@@ -1,0 +1,52 @@
+# Local development: Postgres + the API, no local Postgres install needed.
+#
+#   docker compose up --build      start both (first time, or after changing requirements.txt)
+#   docker compose up              start both
+#   docker compose down            stop (data is kept)
+#   docker compose down -v         stop AND wipe the database
+#
+# API:  http://localhost:8000/docs
+# DB:   localhost:5433, user/password/db = mentalhealth (for pgAdmin or psql)
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: mentalhealth
+      POSTGRES_PASSWORD: mentalhealth
+      POSTGRES_DB: mentalhealth
+    ports:
+      # 5433 on your computer, so it never clashes with a Homebrew Postgres on 5432.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # keeps data between restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mentalhealth -d mentalhealth"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: .
+    # --reload restarts the server whenever a file in ./app changes.
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      # Inside Docker the database host is "db". This ignores any DATABASE_URL in .env.
+      DATABASE_URL: postgresql+psycopg://mentalhealth:mentalhealth@db:5432/mentalhealth
+      # The rest come from your .env if you have one; otherwise these local defaults are
+      # used, so the app starts with no .env at all.
+      ENV: ${ENV:-development}                       # development = /auth/dev-login is on
+      JWT_SECRET: ${JWT_SECRET:-local-docker-dev-secret-not-for-production-0123456789}
+      GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}  # only needed to test real Google sign-in
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-60}
+    volumes:
+      # Your code folder is shared with the container, so edits show up immediately.
+      - ./app:/code/app
+    depends_on:
+      db:
+        condition: service_healthy   # wait until Postgres accepts connections
+
+volumes:
+  pgdata:

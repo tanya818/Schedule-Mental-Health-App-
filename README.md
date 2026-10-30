@@ -56,7 +56,41 @@ key to `users.id` (one user → many events, `ON DELETE CASCADE`).
 - **Event validation**: `end_time` must be after `start_time`, or the API
   returns `422`.
 
-## Setup
+## Run with Docker (easiest: no Postgres install needed)
+
+Needs only [Docker Desktop](https://www.docker.com/products/docker-desktop/) (open it once
+so it's running). No `.env` file is needed.
+
+1. Start the database and the API:
+   ```
+   docker compose up --build
+   ```
+   The first run downloads Postgres and Python and takes a few minutes. When the log
+   shows `Application startup complete`, open http://localhost:8000/docs.
+
+2. Edit code as usual. Files in `app/` are shared with the container and the server
+   restarts by itself when you save (watch for `Reloading...` in the log), so just
+   refresh `/docs` and try your change. No rebuild needed.
+
+3. Stop with `Ctrl+C` (or `docker compose down` if you started it with `-d`).
+
+Docker runs with `ENV=development`, so `POST /auth/dev-login` works for testing without
+Google. To test real Google sign-in, put `GOOGLE_WEB_CLIENT_ID` (and your own
+`JWT_SECRET`) in a `.env` file; Docker picks them up on the next `docker compose up`.
+
+| I want to... | Run |
+| --- | --- |
+| Start again later | `docker compose up` |
+| Run it in the background | `docker compose up -d`, then `docker compose logs -f api` to watch |
+| Apply a change to `requirements.txt` or `Dockerfile` | `docker compose up --build` |
+| Wipe the database and start fresh | `docker compose down -v` |
+| Look at the data in pgAdmin or psql | host `localhost`, port `5433`, user/password/database `mentalhealth` |
+| Use Docker's database but run the API myself (e.g. to use the VS Code debugger) | `docker compose up -d db`, set `DATABASE_URL` in `.env` to the Docker line in `.env.example`, then `uvicorn app.main:app --reload` |
+
+The Docker database is separate from any Postgres on your Mac and starts empty; the app
+creates all tables on startup, so the `migrations/` files aren't needed there.
+
+## Setup without Docker
 
 1. Create a virtual environment and install dependencies:
    ```
